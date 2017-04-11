@@ -1,4 +1,5 @@
 import re
+from collections import defaultdict
 
 
 class InconsistentIndices(Exception):
@@ -35,6 +36,8 @@ class SynList(object):
         self._dict = dict()
 
     def _new_term(self, term, index):
+        if term is None:
+            return
         term = term.strip()
         self._list[index].add(term)
         self._dict[term] = index
@@ -43,6 +46,8 @@ class SynList(object):
         return self._dict[term.strip()]
 
     def _set_name(self, index, name):
+        if index is None:
+            return
         self._new_term(name, index)
         self._name[index] = name
 
@@ -96,17 +101,18 @@ class SynList(object):
 
     def find_indices(self, it):
         """
-        Return all item indices for terms in the iterable set.
+        Match an iterable of terms with indices.
         :param it: an *iterable* of strings to match on-- if the input is a single string, use index()
-        :return:
+        :return: a dict whose keys are indices and whose values are sets of terms. If the set includes terms that are
+         not known to the synlist, they will be included in the None key.
         """
-        found = set()
+        found = defaultdict(set)
         for i in it:
             try:
-                found.add(self._get_index(i))
+                found[self._get_index(i)].add(i)
             except KeyError:
-                continue
-        return sorted(list(found))
+                found[None].add(i)
+        return found
 
     def _merge_set_with_index(self, it, index):
         for i in it:
@@ -119,14 +125,17 @@ class SynList(object):
         :param name:
         :return:
         """
-        index = self._new_item()
+        index = None
         for i in it:
             j = i.strip()
             if j not in self._dict:
+                if index is None:
+                    # this shuffle is to prevent creating a new item with no terms
+                    index = self._new_item()
                 self._new_term(j, index)
                 if name is None:
                     name = j
-        self._set_name(index, name)
+        self._set_name(index, name)  # does nothing for None index or None name
         return index
 
     def add_set(self, it, merge=False, name=None):
@@ -134,21 +143,33 @@ class SynList(object):
         given an iterable of keys:
          - if any of them are found:
           - if they are found in multiple indices, raise an inconsistency error
-          - elif they are found in one index, add all to the index
-          - elif they are not found at all, add them to a new index
-        :param it: an iterable of keys
+          - elif they are found in one index:
+            - if merge is True, add unmatched terms to the index
+            - else, add unmatched terms to a new index
+         - else they are not found at all: add all terms to a new index
+        :param it: an iterable of terms
         :param merge: [False] whether to merge matching keys or to shunt off to a new index
-        :param name: shortname for the synonym set
+        :param name: [None] canonical name for the synonym set. NOTE: if merge is false and name is already known to
+         the SynList, the name will get re-assigned to the new set.
         :return:
         """
         found = self.find_indices(it)
+        try:
+            unmatched = found.pop(None)
+        except KeyError:
+            unmatched = set()
         if len(found) > 1:
-            raise InconsistentIndices('Keys found in indices: %s' % found)
-        elif len(found) == 1 and merge:
-            index = found.pop()
-            self._merge_set_with_index(it, index)
+            # two or more non-None indices
+            raise InconsistentIndices('Keys found in indices: %s' % sorted(list(found.keys())))
+        elif len(found) == 0 or merge is False:
+            # no matching index found, or don't merge
+            # note! _set_name will force name into the new set even if it's already found
+            index = self.new_set(unmatched, name=name)
         else:
-            index = self.new_set(it, name=name)
+            # len(found) == 1 and merge is True:
+            index = next(k for k in found.keys())
+            self._merge_set_with_index(unmatched, index)
+
         return index
 
     def _merge(self, merge, into):
