@@ -49,7 +49,7 @@ class SynList(object):
         if index is None:
             return
         self._new_term(name, index)
-        self._name[index] = name
+        self._name[index] = name.strip()
 
     def _new_item(self):
         k = len(self._list)
@@ -93,11 +93,12 @@ class SynList(object):
         :param term:
         :return:
         """
-        key = term.strip()
-        if key not in self._dict.keys():
+        try:
+            index = self._get_index(term)
+        except KeyError:
             index = self._new_item()
-            self._new_term(key, index)
-        return self._dict[key]
+            self._set_name(index, term)
+        return index
 
     def find_indices(self, it):
         """
@@ -193,7 +194,7 @@ class SynList(object):
             self._merge(i, merge_into)
 
     def add_synonyms(self, *terms):
-        return self.add_set({terms})
+        return self.add_set(terms, merge=True)
 
     def synonyms_for(self, term):
         return self.synonym_set(self._get_index(term))
