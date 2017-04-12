@@ -1,11 +1,11 @@
 """
-Unit Tests for SynList and Flowables
+Unit Tests for SynList
 
 Things to test for:
  - all the problems I ran into when first creating the flowables, in unit form. this can actually be very constructive.
 """
 
-from synlist.synlist import SynList, InconsistentIndices
+from synlist.synlist import SynList, InconsistentIndices, NameFound
 
 import unittest
 import json
@@ -100,6 +100,10 @@ class SynListTestCase(unittest.TestCase):
             self.synlist.add_set(('Conan the barbarian', 'Henry VII'))
 
     def test_add_merge(self):
+        """
+        Tests the ability to shunt off non-matching phrases to a new item even when some synonyms match existing items
+        :return:
+        """
         self.assertEqual(self.synlist.add_set(('Conan the barbarian', 'bob the builder'), merge=False), 2)
         self.assertEqual(self.synlist.add_set(('bob the builder', 'Nicky "legs" Capote'), merge=False), 3)
         self.assertEqual(self.synlist.add_set(('Jack the Ripper', 'Nicky "legs" Capote'), merge=True), 3)
@@ -107,8 +111,40 @@ class SynListTestCase(unittest.TestCase):
             self.synlist.add_set(('bob the builder', 'Nicky "legs" Capote'))
 
     def test_new_set(self):
+        """
+        Create a new set with some terms that may already exist
+        :return:
+        """
         self.assertEqual(self.synlist.new_set(('Henry VII', 'Marie Antoinette')), 2)
         self.assertSetEqual(self.synlist.synonyms_for('Marie Antoinette'), {'Marie Antoinette'})
+
+    def test_reassign_name_fails(self):
+        """
+        If a specified name for a new set is already a synonym of a different set, it will raise an error.
+        however, the new set will still be created
+        :return:
+        """
+        with self.assertRaises(NameFound):
+            self.synlist.new_set(('Bob', 'bob the builder', 'your cousin', 'your cousin bob'), name='your cousin')
+
+        self.assertEqual(self.synlist.index('Bob'), 2)
+        self.assertEqual(self.synlist.index('your cousin'), 1)
+
+    def test_reassign_name_succeeds(self):
+        """
+        If a specified name for a set to be merged is already in the target set, no error will be raised and the name
+        gets updated.
+        :return:
+        """
+
+        self.synlist.add_set(('Bob', 'bob the builder', 'your cousin', 'your cousin bob'), merge=True,
+                             name='your cousin')
+        self.assertEqual(self.synlist.name('Bob'), 'your cousin')
+        self.assertTrue(self.synlist.are_synonyms('Bob', 'Zeke'))
+        self.assertSetEqual(self.synlist.synonyms_for('your cousin'), {'Zeke', 'zeke', 'Bob', 'bob the builder',
+                                                                       'your cousin', 'your cousin Zeke',
+                                                                       'your cousin bob'})
+        self.assertEqual(len(self.synlist), 2)
 
 
 if __name__ == '__main__':

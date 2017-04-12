@@ -6,6 +6,17 @@ class InconsistentIndices(Exception):
     pass
 
 
+class TermFound(Exception):
+    """
+    TermFound should never be thrown except in _set_name, where it gets upgraded to NameFound
+    """
+    pass
+
+
+class NameFound(Exception):
+    pass
+
+
 class SynList(object):
     """
     An ordered list of synonym sets.  The SynList has two components:
@@ -39,16 +50,27 @@ class SynList(object):
         if term is None:
             return
         term = term.strip()
+        if term in self._dict:
+            if self._dict[term] == index:
+                return  # nothing to do
+            raise TermFound(term)
         self._list[index].add(term)
         self._dict[term] = index
+        if self._name[index] is None:
+            self._name[index] = term
 
     def _get_index(self, term):
+        if term is None:
+            raise KeyError
         return self._dict[term.strip()]
 
     def _set_name(self, index, name):
-        if index is None:
+        if index is None or name is None:
             return
-        self._new_term(name, index)
+        try:
+            self._new_term(name, index)
+        except TermFound:
+            raise NameFound(name)
         self._name[index] = name.strip()
 
     def _new_item(self):
@@ -97,7 +119,7 @@ class SynList(object):
             index = self._get_index(term)
         except KeyError:
             index = self._new_item()
-            self._set_name(index, term)
+            self._new_term(term, index)
         return index
 
     def find_indices(self, it):
@@ -123,7 +145,8 @@ class SynList(object):
         """
         Creates a new synonym set from entries in iterable. SILENTLY IGNORES existing terms.
         :param it:
-        :param name:
+        :param name: [None] canonical name for the synonym set.  NOTE: if name is found elsewhere, it will raise
+         NameFound
         :return:
         """
         index = None
@@ -136,7 +159,7 @@ class SynList(object):
                 self._new_term(j, index)
                 if name is None:
                     name = j
-        self._set_name(index, name)  # does nothing for None index or None name
+        self._set_name(index, name)  # does nothing for None index
         return index
 
     def add_set(self, it, merge=False, name=None):
@@ -150,8 +173,8 @@ class SynList(object):
          - else they are not found at all: add all terms to a new index
         :param it: an iterable of terms
         :param merge: [False] whether to merge matching keys or to shunt off to a new index
-        :param name: [None] canonical name for the synonym set. NOTE: if merge is false and name is already known to
-         the SynList, the name will get re-assigned to the new set.
+        :param name: [None] canonical name for the synonym set. NOTE: if name is found elsewhere, it will raise
+         NameFound.
         :return:
         """
         found = self.find_indices(it)
@@ -164,12 +187,12 @@ class SynList(object):
             raise InconsistentIndices('Keys found in indices: %s' % sorted(list(found.keys())))
         elif len(found) == 0 or merge is False:
             # no matching index found, or don't merge
-            # note! _set_name will force name into the new set even if it's already found
             index = self.new_set(unmatched, name=name)
         else:
             # len(found) == 1 and merge is True:
             index = next(k for k in found.keys())
             self._merge_set_with_index(unmatched, index)
+            self._set_name(index, name)
 
         return index
 
@@ -198,6 +221,9 @@ class SynList(object):
 
     def synonyms_for(self, term):
         return self.synonym_set(self._get_index(term))
+
+    def are_synonyms(self, term1, term2):
+        return self._get_index(term1) == self._get_index(term2)
 
     def search(self, term):
         """
