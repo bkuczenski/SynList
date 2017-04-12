@@ -202,6 +202,7 @@ class SynList(object):
         for i in self._list[into]:
             self._dict[i] = into
         self._list[merge] = None
+        self._name[merge] = None
 
     def merge(self, dominant, *terms):
         """

@@ -147,6 +147,13 @@ class SynListTestCase(unittest.TestCase):
         self.assertTrue(self.synlist.are_synonyms('Bob', 'Zeke'))
         self.assertEqual(len(self.synlist), 2)
 
+    def test_merge(self):
+        """
+        TODO
+        :return:
+        """
+        pass
+
 
 class FlowablesBasicTest(SynListTestCase):
     """
