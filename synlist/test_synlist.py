@@ -1,11 +1,12 @@
 """
-Unit Tests for SynList
+Unit Tests for SynList and Flowables basic functionality
 
 Things to test for:
  - all the problems I ran into when first creating the flowables, in unit form. this can actually be very constructive.
 """
 
 from synlist.synlist import SynList, InconsistentIndices, NameFound
+from synlist.flowables import Flowables
 
 import unittest
 import json
@@ -60,6 +61,9 @@ class SynListTestCase(unittest.TestCase):
      _new_term
      _
     """
+    ma_synonyms = {'Marie Antoinette'}
+    z_synonyms = {'Zeke', 'zeke', 'your cousin', 'your cousin Zeke'}
+
     def setUp(self):
         """
         deserialize, __init__, add_set without merge (=>
@@ -79,7 +83,7 @@ class SynListTestCase(unittest.TestCase):
         synonyms_for, _get_index
         :return:
         """
-        self.assertSetEqual(self.synlist.synonyms_for('zeke'), {'Zeke', 'zeke', 'your cousin', 'your cousin Zeke'})
+        self.assertSetEqual(self.synlist.synonyms_for('zeke'), self.z_synonyms)
 
     def test_find_indices(self):
         """
@@ -116,7 +120,7 @@ class SynListTestCase(unittest.TestCase):
         :return:
         """
         self.assertEqual(self.synlist.new_set(('Henry VII', 'Marie Antoinette')), 2)
-        self.assertSetEqual(self.synlist.synonyms_for('Marie Antoinette'), {'Marie Antoinette'})
+        self.assertSetEqual(self.synlist.synonyms_for('Marie Antoinette'), self.ma_synonyms)
 
     def test_reassign_name_fails(self):
         """
@@ -141,10 +145,21 @@ class SynListTestCase(unittest.TestCase):
                              name='your cousin')
         self.assertEqual(self.synlist.name('Bob'), 'your cousin')
         self.assertTrue(self.synlist.are_synonyms('Bob', 'Zeke'))
-        self.assertSetEqual(self.synlist.synonyms_for('your cousin'), {'Zeke', 'zeke', 'Bob', 'bob the builder',
-                                                                       'your cousin', 'your cousin Zeke',
-                                                                       'your cousin bob'})
         self.assertEqual(len(self.synlist), 2)
+
+
+class FlowablesBasicTest(SynListTestCase):
+    """
+    Apply the same tests to the subclass to make sure the inheritance didn't break anything: override setUp
+    need to adjust for case-insensitivity for terms of length > 3: override class variables
+    """
+    ma_synonyms = {'Marie Antoinette', 'marie antoinette'}
+    z_synonyms = {'Zeke', 'zeke', 'your cousin', 'your cousin Zeke', 'your cousin zeke'}
+
+    def setUp(self):
+        j = json.loads(synlist_json)
+        j['Flowables'] = j.pop('SynList')
+        self.synlist = Flowables.from_json(j)
 
 
 if __name__ == '__main__':
