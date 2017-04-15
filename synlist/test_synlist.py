@@ -101,7 +101,9 @@ class SynListTestCase(unittest.TestCase):
         self.assertEqual(self.synlist.add_synonyms('Conan the barbarian', 'your brother steve'), 2)
 
         with self.assertRaises(InconsistentIndices):
-            self.synlist.add_set(('Conan the barbarian', 'Henry VII'))
+            self.synlist.add_set(('Conan the barbarian', 'Henry VII'), merge=True)
+
+        self.assertEqual(self.synlist.add_set(('Conan the barbarian', 'Henry VII')), None)  # both terms already exist
 
     def test_add_merge(self):
         """
@@ -112,7 +114,7 @@ class SynListTestCase(unittest.TestCase):
         self.assertEqual(self.synlist.add_set(('bob the builder', 'Nicky "legs" Capote'), merge=False), 3)
         self.assertEqual(self.synlist.add_set(('Jack the Ripper', 'Nicky "legs" Capote'), merge=True), 3)
         with self.assertRaises(InconsistentIndices):
-            self.synlist.add_set(('bob the builder', 'Nicky "legs" Capote'))
+            self.synlist.add_set(('bob the builder', 'Nicky "legs" Capote'), merge=True)
 
     def test_new_set(self):
         """
@@ -147,12 +149,31 @@ class SynListTestCase(unittest.TestCase):
         self.assertTrue(self.synlist.are_synonyms('Bob', 'Zeke'))
         self.assertEqual(len(self.synlist), 2)
 
+    def _case_sensitivity(self, synlist):
+        self.assertTrue(synlist.are_synonyms('i need you', 'i love you'))
+        self.assertFalse(synlist.are_synonyms('I love you', 'i love you'))
+        self.assertFalse(synlist.are_synonyms('i love you', 'i want you'))
+
     def test_merge(self):
         """
-        TODO
+        Make sure the proper sets are identified. make sure the terms in those sets are all synonyms. make sure the
+        merged indices are no longer valid. make sure it works for >2 inputs
         :return:
         """
-        pass
+        set1 = self.synlist.add_set(('hello', 'I love you', 'Won\'t you tell me your name'), merge=True)
+        self.assertEqual(len(self.synlist), 3)
+        self.assertEqual(self.synlist.index('hello'), set1)
+
+        set2 = self.synlist.add_set(('The hills are alive', 'with the sound of music', 'the sound of music'))
+        set3 = self.synlist.add_set(('i want you', 'i want you so bad', 'i want you so bad it\'s driving me mad'))
+        set4 = self.synlist.add_set(('i love you', 'i want you', 'i need you'))  # i love you != I love you
+        self._case_sensitivity(self.synlist)
+
+        self.synlist.merge('hello', 'i need you', 'Henry VII')
+        self.assertTrue(self.synlist.are_synonyms('Won\'t you tell me your name', 'The Great Houdini'))
+        self.assertTrue(self.synlist.are_synonyms('i need you', 'The Great Houdini'))
+        self.assertEqual(self.synlist.index('Henry VII'), set1)
+        self.assertEqual(self.synlist.synonym_set(set4), None)
 
 
 class FlowablesBasicTest(SynListTestCase):
@@ -167,6 +188,11 @@ class FlowablesBasicTest(SynListTestCase):
         j = json.loads(synlist_json)
         j['Flowables'] = j.pop('SynList')
         self.synlist = Flowables.from_json(j)
+
+    def _case_sensitivity(self, synlist):
+        self.assertFalse(synlist.are_synonyms('i need you', 'i love you'))
+        self.assertTrue(synlist.are_synonyms('I love you', 'i love you'))
+        self.assertFalse(synlist.are_synonyms('i love you', 'i want you'))
 
 
 if __name__ == '__main__':

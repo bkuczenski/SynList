@@ -182,12 +182,12 @@ class SynList(object):
             unmatched = found.pop(None)
         except KeyError:
             unmatched = set()
-        if len(found) > 1:
-            # two or more non-None indices
-            raise InconsistentIndices('Keys found in indices: %s' % sorted(list(found.keys())))
-        elif len(found) == 0 or merge is False:
+        if len(found) == 0 or merge is False:
             # no matching index found, or don't merge
             index = self.new_set(unmatched, name=name)
+        elif len(found) > 1:
+            # two or more non-None indices -- if merge is false, we can just ignore these
+            raise InconsistentIndices('Keys found in indices: %s' % sorted(list(found.keys())))
         else:
             # len(found) == 1 and merge is True:
             index = next(k for k in found.keys())
@@ -197,7 +197,7 @@ class SynList(object):
         return index
 
     def _merge(self, merge, into):
-        print('Merging\n## %s \ninto synonym set containing\n## %s' % (self._list[merge], self._list[into]))
+        # print('Merging\n## %s \ninto synonym set containing\n## %s' % (self._list[merge], self._list[into]))
         self._list[into] = self._list[into].union(self._list[merge])
         for i in self._list[into]:
             self._dict[i] = into
@@ -213,7 +213,6 @@ class SynList(object):
         """
         merge_into = self._get_index(dominant)
         indices = set([self._get_index(term) for term in terms])
-        indices.remove(merge_into)
         for i in indices:
             self._merge(i, merge_into)
 
