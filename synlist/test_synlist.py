@@ -121,7 +121,7 @@ class SynListTestCase(unittest.TestCase):
         Create a new set with some terms that may already exist
         :return:
         """
-        self.assertEqual(self.synlist.new_set(('Henry VII', 'Marie Antoinette')), 2)
+        self.assertEqual(self.synlist.add_set(('Henry VII', 'Marie Antoinette')), 2)
         self.assertSetEqual(self.synlist.synonyms_for('Marie Antoinette'), self.ma_synonyms)
 
     def test_reassign_name_fails(self):
@@ -131,7 +131,7 @@ class SynListTestCase(unittest.TestCase):
         :return:
         """
         with self.assertRaises(NameFound):
-            self.synlist.new_set(('Bob', 'bob the builder', 'your cousin', 'your cousin bob'), name='your cousin')
+            self.synlist.add_set(('Bob', 'bob the builder', 'your cousin', 'your cousin bob'), name='your cousin')
 
         self.assertEqual(self.synlist.index('Bob'), 2)
         self.assertEqual(self.synlist.index('your cousin'), 1)
@@ -179,10 +179,8 @@ class SynListTestCase(unittest.TestCase):
 class FlowablesBasicTest(SynListTestCase):
     """
     Apply the same tests to the subclass to make sure the inheritance didn't break anything: override setUp
-    need to adjust for case-insensitivity for terms of length > 3: override class variables
+    need to adjust for case-insensitivity for terms of length > 3: override synonym testing
     """
-    ma_synonyms = {'Marie Antoinette', 'marie antoinette'}
-    z_synonyms = {'Zeke', 'zeke', 'your cousin', 'your cousin Zeke', 'your cousin zeke'}
 
     def setUp(self):
         j = json.loads(synlist_json)
