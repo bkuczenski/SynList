@@ -145,25 +145,23 @@ class SynList(object):
         for i in it:
             self._new_term(i, index)
 
-    def new_set(self, it, name=None):
+    def _new_set(self, it):
         """
         Creates a new synonym set from entries in iterable. SILENTLY IGNORES existing terms.
         :param it:
-        :param name: [None] canonical name for the synonym set.  NOTE: if name is found elsewhere, it will raise
-         NameFound
         :return:
         """
         index = None
+        unmatched = []
         for i in it:
-            j = i.strip()
-            if j not in self._dict:
-                if index is None:
-                    # this shuffle is to prevent creating a new item with no terms
-                    index = self._new_item()
+            try:
+                self._get_index(i)
+            except KeyError:
+                unmatched.append(i)
+        if len(unmatched) > 0:
+            index = self._new_item()
+            for j in unmatched:
                 self._new_term(j, index)
-                if name is None:
-                    name = j
-        self._set_name(index, name)  # does nothing for None index
         return index
 
     def add_set(self, it, merge=False, name=None):
@@ -177,18 +175,20 @@ class SynList(object):
          - else they are not found at all: add all terms to a new index
         :param it: an iterable of terms
         :param merge: [False] whether to merge matching keys or to shunt off to a new index
-        :param name: [None] canonical name for the synonym set. NOTE: if name is found elsewhere, it will raise
-         NameFound.
+        :param name: [None] canonical name for the synonym set. NOTE: if name is found elsewhere, it will not be set
         :return:
         """
         found = self.find_indices(it)
+        if name is not None:
+            found[self._known(name)].add(name)
+
         try:
             unmatched = found.pop(None)
         except KeyError:
             unmatched = set()
         if len(found) == 0 or merge is False:
             # no matching index found, or don't merge
-            index = self.new_set(unmatched, name=name)
+            index = self._new_set(unmatched)
         elif len(found) > 1:
             # two or more non-None indices -- if merge is false, we can just ignore these
             raise InconsistentIndices('Keys found in indices: %s' % sorted(list(found.keys())))
@@ -196,8 +196,8 @@ class SynList(object):
             # len(found) == 1 and merge is True:
             index = next(k for k in found.keys())
             self._merge_set_with_index(unmatched, index)
+        if name is not None:
             self._set_name(index, name)
-
         return index
 
     def _merge(self, merge, into):
@@ -233,10 +233,11 @@ class SynList(object):
         return self.add_set(terms, merge=True)
 
     def _known(self, term):
+        if term is None:
+            return None
         try:
             in1 = self._get_index(term)
         except KeyError:
-            print('Unknown term: %s' % term)
             return None
         return in1
 
