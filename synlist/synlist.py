@@ -62,6 +62,10 @@ class SynList(object):
     def _get_index(self, term):
         if term is None:
             raise KeyError
+        if isinstance(term, int):
+            if term < len(self._list):
+                return term
+            raise IndexError('Item index out of range')
         return self._dict[term.strip()]
 
     def _set_name(self, index, name):
@@ -92,7 +96,7 @@ class SynList(object):
         :param term:
         :return:
         """
-        return self._get_index(term)
+        return self._known(term)
 
     def all_terms(self):
         """
@@ -216,14 +220,35 @@ class SynList(object):
         for i in indices:
             self._merge(i, merge_into)
 
+    def add_synonym(self, index, term):
+        """
+        Add term to an item known by index
+        :param index:
+        :param term:
+        :return:
+        """
+        self._new_term(term, index)
+
     def add_synonyms(self, *terms):
         return self.add_set(terms, merge=True)
 
+    def _known(self, term):
+        try:
+            in1 = self._get_index(term)
+        except KeyError:
+            print('Unknown term: %s' % term)
+            return None
+        return in1
+
     def synonyms_for(self, term):
-        return self.synonym_set(self._get_index(term))
+        inx = self._known(term)
+        if inx is None:
+            return None
+        return self.synonym_set(inx)
 
     def are_synonyms(self, term1, term2):
-        return self._get_index(term1) == self._get_index(term2)
+        k1 = self._known(term1)
+        return k1 == self._known(term2) and k1 is not None
 
     def search(self, term):
         """
