@@ -124,27 +124,14 @@ class SynListTestCase(unittest.TestCase):
         self.assertEqual(self.synlist.add_set(('Henry VII', 'Marie Antoinette')), 2)
         self.assertSetEqual(self.synlist.synonyms_for('Marie Antoinette'), self.ma_synonyms)
 
-    def test_reassign_name_fails(self):
-        """
-        If a specified name for a new set is already a synonym of a different set, it will raise an error.
-        however, the new set will still be created
-        :return:
-        """
-        with self.assertRaises(NameFound):
-            self.synlist.add_set(('Bob', 'bob the builder', 'your cousin', 'your cousin bob'), name='your cousin')
-
-        self.assertEqual(self.synlist.index('Bob'), 2)
-        self.assertEqual(self.synlist.index('your cousin'), 1)
-
-    def test_reassign_name_succeeds(self):
+    def test_reassign_name(self):
         """
         If a specified name for a set to be merged is already in the target set, no error will be raised and the name
         gets updated.
         :return:
         """
-
-        self.synlist.add_set(('Bob', 'bob the builder', 'your cousin', 'your cousin bob'), merge=True,
-                             name='your cousin')
+        self.synlist.add_set(('Bob', 'bob the builder', 'your cousin', 'your cousin bob'), merge=True)
+        self.synlist.set_name('your cousin')
         self.assertEqual(self.synlist.name('Bob'), 'your cousin')
         self.assertTrue(self.synlist.are_synonyms('Bob', 'Zeke'))
         self.assertEqual(len(self.synlist), 2)
@@ -174,6 +161,7 @@ class SynListTestCase(unittest.TestCase):
         self.assertTrue(self.synlist.are_synonyms('i need you', 'The Great Houdini'))
         self.assertEqual(self.synlist.index('Henry VII'), set1)
         self.assertEqual(self.synlist.synonym_set(set4), None)
+        self.assertEqual(len(self.synlist), 4)
 
 
 class FlowablesBasicTest(SynListTestCase):
@@ -181,6 +169,7 @@ class FlowablesBasicTest(SynListTestCase):
     Apply the same tests to the subclass to make sure the inheritance didn't break anything: override setUp
     need to adjust for case-insensitivity for terms of length > 3: override synonym testing
     """
+    z_synonyms = {'Zeke', 'your cousin', 'your cousin Zeke'}
 
     def setUp(self):
         j = json.loads(synlist_json)

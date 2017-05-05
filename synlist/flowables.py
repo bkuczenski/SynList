@@ -18,7 +18,7 @@ def find_cas(syns):
     found = set()
     for i in syns:
         if bool(cas_regex.match(i)):
-            found.add(i)
+            found.add(trim_cas(i))
     if len(found) > 1:
         raise ConflictingCas('Multiple CAS numbers found: %s' % found)
     if len(found) == 0:
@@ -74,12 +74,17 @@ class Flowables(SynList):
         except KeyError:
             if len(term.strip()) > 3:
                 return super(Flowables, self)._get_index(term.lower())
+            raise
+
+    @staticmethod
+    def _sanitize(term):
+        key = term.strip()
+        if len(key) > 3:
+            key = key.lower()
+        return key
 
     def _assign_term(self, term, index, force=False):
-        if len(term) > 3:
-            lterm = term.lower()
-        else:
-            lterm = term
+        lterm = self._sanitize(term)
         if lterm in self._dict:
             if self._dict[lterm] != index:
                 if force is False:
@@ -88,24 +93,27 @@ class Flowables(SynList):
         self._dict[lterm] = index
 
     def _new_term(self, term, index):
-        term = term.strip()
-        if cas_regex.match(term):
-            if self._cas[index] is not None and trim_cas(self._cas[index]) != trim_cas(term):
+        if term is None:
+            return
+        key = self._sanitize(term)
+        if key in self._dict:
+            if self._dict[key] == index:
+                return  # nothing to do
+            raise TermFound(term)
+        if cas_regex.match(key):
+            if self._cas[index] is not None and trim_cas(self._cas[index]) != trim_cas(key):
                 raise ConflictingCas('Index %d already has CAS %s' % (index, self._cas[index]))
             else:
-                term = pad_cas(term)
-                self._cas[index] = term
-                super(Flowables, self)._new_term(trim_cas(term), index)
-        self._assign_term(term, index)
+                key = pad_cas(key)
+                self._cas[index] = key
+                super(Flowables, self)._new_term(trim_cas(key), index)
+        self._list[index].add(term)
+        self._dict[key] = index
         if self._name[index] is None:
             self._name[index] = term
 
     def _merge(self, merge, into):
-        self._list[into] = self._list[into].union(self._list[merge])
-        for i in self._list[into]:
-            self._assign_term(i, into, force=True)
-        self._list[merge] = None
-        self._name[merge] = None
+        super(Flowables, self)._merge(merge, into)
         self._cas[merge] = None
 
     def merge(self, dominant, *terms, multi_cas=False):
@@ -132,6 +140,28 @@ class Flowables(SynList):
         super(Flowables, self).merge(dominant, *terms)
         if len(the_cas) == 1:
             self._cas[dom] = the_cas[0]
+
+    def check_cas(self, it):
+        """
+        Does one of three things:
+         if incoming iterable has multiple CAS numbers, raise ConflictingCas (done within find_cas)
+         if incoming iterable has no CAS numbers, return None
+         if incoming iterable has one CAS number, return a list of indices with conflicting CAS numbers. If no
+         conflicts are found, this list will be empty.
+        :param it:
+        :return:
+        """
+        incoming_cas = find_cas(it)  # returns a trimmed cas
+        if incoming_cas is None:
+            return None
+        conflicts = set()
+        for i in it:
+            inx = self._known(i)
+            if inx is not None and inx not in conflicts:
+                contender = self._cas[inx]
+                if contender is not None and trim_cas(contender) != incoming_cas:
+                    conflicts.add(inx)
+        return sorted(list(conflicts))
 
     def _merge_set_with_index(self, it, index):
         cas = find_cas(it)

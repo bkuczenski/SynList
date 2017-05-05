@@ -23,6 +23,9 @@ class SynList(object):
      * a list of sets (with unique entries)
      * a dict whose keys are the unique entries, and whose values are the indices into the list
 
+    Membership in the list is determined by whether it is a key in the dict.  Dict keys are sanitized before being
+    added: mainly by stripping whitespace. but this can be overloaded.
+
     This allows two types of references:
      - put in a string--> get back a set of synonyms
      - put in an index--> get back a set of synonyms
@@ -35,47 +38,18 @@ class SynList(object):
     """
     @classmethod
     def from_json(cls, j):
+
         s = cls()
         json_string = cls.__name__
         for i in j[json_string]:
-            s.add_set(i['synonyms'], name=i['name'])
+            s.add_set(i['synonyms'] + [i['name']])
+            s.set_name(i['name'])
         return s
 
     def __init__(self):
         self._name = []
         self._list = []
         self._dict = dict()
-
-    def _new_term(self, term, index):
-        if term is None:
-            return
-        term = term.strip()
-        if term in self._dict:
-            if self._dict[term] == index:
-                return  # nothing to do
-            raise TermFound(term)
-        self._list[index].add(term)
-        self._dict[term] = index
-        if self._name[index] is None:
-            self._name[index] = term
-
-    def _get_index(self, term):
-        if term is None:
-            raise KeyError
-        if isinstance(term, int):
-            if term < len(self._list):
-                return term
-            raise IndexError('Item index out of range')
-        return self._dict[term.strip()]
-
-    def _set_name(self, index, name):
-        if index is None or name is None:
-            return
-        try:
-            self._new_term(name, index)
-        except TermFound:
-            raise NameFound(name)
-        self._name[index] = name.strip()
 
     def _new_item(self):
         k = len(self._list)
@@ -89,6 +63,32 @@ class SynList(object):
         :return:
         """
         return len([x for x in self._list if x is not None])
+
+    @staticmethod
+    def _sanitize(key):
+        return key.strip()
+
+    def _new_term(self, term, index):
+        if term is None:
+            return
+        key = self._sanitize(term)
+        if key in self._dict:
+            if self._dict[key] == index:
+                return  # nothing to do
+            raise TermFound(term)
+        self._list[index].add(term)
+        self._dict[key] = index
+        if self._name[index] is None:
+            self._name[index] = term
+
+    def _get_index(self, term):
+        if term is None:
+            raise KeyError
+        if isinstance(term, int):
+            if term < len(self._list):
+                return term
+            raise IndexError('Item index out of range')
+        return self._dict[self._sanitize(term)]
 
     def index(self, term):
         """
@@ -160,27 +160,23 @@ class SynList(object):
                 unmatched.append(i)
         if len(unmatched) > 0:
             index = self._new_item()
-            for j in unmatched:
-                self._new_term(j, index)
+            self._merge_set_with_index(unmatched, index)
         return index
 
-    def add_set(self, it, merge=False, name=None):
+    def add_set(self, it, merge=False):
         """
         given an iterable of keys:
          - if any of them are found:
-          - if they are found in multiple indices, raise an inconsistency error
-          - elif they are found in one index:
-            - if merge is True, add unmatched terms to the index
-            - else, add unmatched terms to a new index
+          - if merge is True:
+           - if they are found in multiple indices, raise an inconsistency error
+           - else they are found in one index, add unmatched terms to the index
+          - else, add unmatched terms to a new index
          - else they are not found at all: add all terms to a new index
         :param it: an iterable of terms
         :param merge: [False] whether to merge matching keys or to shunt off to a new index
-        :param name: [None] canonical name for the synonym set. NOTE: if name is found elsewhere, it will not be set
         :return:
         """
         found = self.find_indices(it)
-        if name is not None:
-            found[self._known(name)].add(name)
 
         try:
             unmatched = found.pop(None)
@@ -196,15 +192,23 @@ class SynList(object):
             # len(found) == 1 and merge is True:
             index = next(k for k in found.keys())
             self._merge_set_with_index(unmatched, index)
-        if name is not None:
-            self._set_name(index, name)
+        return index
+
+    def set_name(self, name):
+        """
+        Make the given term the canonical name of whatever item it belongs to.
+        :param name:
+        :return: index of named item
+        """
+        index = self._get_index(name)
+        self._name[index] = name
         return index
 
     def _merge(self, merge, into):
         # print('Merging\n## %s \ninto synonym set containing\n## %s' % (self._list[merge], self._list[into]))
         self._list[into] = self._list[into].union(self._list[merge])
         for i in self._list[into]:
-            self._dict[i] = into
+            self._dict[self._sanitize(i)] = into
         self._list[merge] = None
         self._name[merge] = None
 
