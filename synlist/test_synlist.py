@@ -169,7 +169,7 @@ class FlowablesBasicTest(SynListTestCase):
     Apply the same tests to the subclass to make sure the inheritance didn't break anything: override setUp
     need to adjust for case-insensitivity for terms of length > 3: override synonym testing
     """
-    z_synonyms = {'zeke', 'your cousin', 'your cousin Zeke'}
+    z_synonyms = {'Zeke', 'your cousin', 'your cousin Zeke'}
 
     def setUp(self):
         j = json.loads(synlist_json)

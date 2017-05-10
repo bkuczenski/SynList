@@ -17,6 +17,10 @@ class NameFound(Exception):
     pass
 
 
+class EntityFound(Exception):
+    pass
+
+
 class SynList(object):
     """
     An ordered list of synonym sets.  The SynList has two components:
@@ -31,8 +35,7 @@ class SynList(object):
     added: mainly by stripping whitespace. but this can be overloaded.
 
     This allows two types of references:
-     - put in a string--> get back a set of synonyms
-     - put in an index--> get back a set of synonyms
+     - put in a term or index--> get back a set of synonyms, a canonical name, or an entity
 
     This gets easily serialized:
      - JSON list of sets of synonyms
@@ -62,6 +65,9 @@ class SynList(object):
 
     def set_entity(self, term, entity):
         ind = self._get_index(term)
+        if self._entity[ind] is not None:
+            if entity is not None:
+                raise EntityFound('Entity already exists for %s.  Set to None first.' % self._name[ind])
         self._entity[ind] = entity
 
     def entity(self, term):
