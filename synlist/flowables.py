@@ -40,13 +40,16 @@ def trim_cas(cas):
 
 class Flowables(SynList):
     """
-    A SynList that enforces unique CAS numbers on sets.  Also uses case-insensitive lookup for terms > 3 characters
+    A SynList that enforces unique CAS numbers on sets.  Also uses case-insensitive lookup
 
     The CAS thing requires overloading _new_key and _new_group and just about everything else.
     """
 
-    def __init__(self):
-        super(Flowables, self).__init__()
+    def __init__(self, ignore_case=None):
+        """
+        :param ignore_case: this parameter is ignored for flowables
+        """
+        super(Flowables, self).__init__(ignore_case=True)
         self._cas = []
 
     def cas(self, term):
@@ -75,13 +78,6 @@ class Flowables(SynList):
             if len(term.strip()) > 3:
                 return super(Flowables, self)._get_index(term.lower())
             raise
-
-    @staticmethod
-    def _sanitize(term):
-        key = term.strip()
-        if len(key) > 3:
-            key = key.lower()
-        return key
 
     def _assign_term(self, term, index, force=False):
         lterm = self._sanitize(term)

@@ -38,18 +38,22 @@ class SynList(object):
     """
     @classmethod
     def from_json(cls, j):
-
-        s = cls()
+        if 'ignore_case' in j:
+            ignore_case = j['ignore_case']
+        else:
+            ignore_case = False
+        s = cls(ignore_case=ignore_case)
         json_string = cls.__name__
         for i in j[json_string]:
             s.add_set(i['synonyms'] + [i['name']])
             s.set_name(i['name'])
         return s
 
-    def __init__(self):
+    def __init__(self, ignore_case=False):
         self._name = []
         self._list = []
         self._dict = dict()
+        self._ignore_case = ignore_case
 
     def _new_item(self):
         k = len(self._list)
@@ -64,19 +68,21 @@ class SynList(object):
         """
         return len([x for x in self._list if x is not None])
 
-    @staticmethod
-    def _sanitize(key):
-        return key.strip()
+    def _sanitize(self, key):
+        key = key.strip()
+        if self._ignore_case:
+            key = key.lower()
+        return key
 
     def _new_term(self, term, index):
         if term is None:
             return
         key = self._sanitize(term)
+        self._list[index].add(term)
         if key in self._dict:
             if self._dict[key] == index:
                 return  # nothing to do
             raise TermFound(term)
-        self._list[index].add(term)
         self._dict[key] = index
         if self._name[index] is None:
             self._name[index] = term
@@ -285,6 +291,7 @@ class SynList(object):
     def serialize(self):
         json_string = self.__name__
         return {
+            'ignore_case': self._ignore_case,
             json_string: [self._serialize_set(i) for i in range(len(self._list))
                           if self._list[i] is not None]
         }
