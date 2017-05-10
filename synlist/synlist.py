@@ -20,8 +20,12 @@ class NameFound(Exception):
 class SynList(object):
     """
     An ordered list of synonym sets.  The SynList has two components:
-     * a list of sets (with unique entries)
-     * a dict whose keys are the unique entries, and whose values are the indices into the list
+     * a list of sets of "terms" that are unique throughout the SynList.  Each set indicates synonyms for one "item"
+     * a dict whose keys are the unique terms, and whose values are the indices into the list of items.
+
+    In addition, the SynList provides:
+     * a canonical name for each item (the name must be a term)
+     * a list of entities that corresponds to the list of items
 
     Membership in the list is determined by whether it is a key in the dict.  Dict keys are sanitized before being
     added: mainly by stripping whitespace. but this can be overloaded.
@@ -51,14 +55,23 @@ class SynList(object):
 
     def __init__(self, ignore_case=False):
         self._name = []
+        self._entity = []
         self._list = []
         self._dict = dict()
         self._ignore_case = ignore_case
+
+    def set_entity(self, term, entity):
+        ind = self._get_index(term)
+        self._entity[ind] = entity
+
+    def entity(self, term):
+        return self._entity[self._get_index(term)]
 
     def _new_item(self):
         k = len(self._list)
         self._list.append(set())
         self._name.append(None)
+        self._entity.append(None)
         return k
 
     def __len__(self):
