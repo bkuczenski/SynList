@@ -5,7 +5,7 @@ Things to test for:
  - all the problems I ran into when first creating the flowables, in unit form. this can actually be very constructive.
 """
 
-from synlist.synlist import SynList, InconsistentIndices, NameFound
+from synlist.synlist import SynList, InconsistentIndices
 from synlist.flowables import Flowables
 
 import unittest
