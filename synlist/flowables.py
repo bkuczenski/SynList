@@ -1,5 +1,5 @@
 import re
-from synlist.synlist import SynList, TermFound
+from synlist.synlist import SynList, TermFound, CannotSplitName
 
 
 class ConflictingCas(Exception):
@@ -55,7 +55,7 @@ class Flowables(SynList):
     def cas(self, term):
         return self._cas[self._get_index(term)]
 
-    def name(self, term):
+    def cas_name(self, term):
         """
         returns the [[trimmed???]] cas number if it exists; otherwise the canonical name
         :param term:
@@ -66,8 +66,8 @@ class Flowables(SynList):
             return trim_cas(self._cas[ind])
         return self._name[ind]
 
-    def _new_item(self):
-        k = super(Flowables, self)._new_item()
+    def new_item(self, entity=None):
+        k = super(Flowables, self).new_item(entity)
         self._cas.append(None)
         return k
 
@@ -136,6 +136,11 @@ class Flowables(SynList):
         super(Flowables, self).merge(dominant, *terms)
         if len(the_cas) == 1:
             self._cas[dom] = the_cas[0]
+
+    def _matches(self, term):
+        if cas_regex.match(term):
+            raise CannotSplitName('Cannot split CAS number')
+        return super(Flowables, self)._matches(term)
 
     def check_cas(self, it):
         """

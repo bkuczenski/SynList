@@ -13,7 +13,7 @@ class TermFound(Exception):
     pass
 
 
-class NameFound(Exception):
+class CannotSplitName(Exception):
     pass
 
 
@@ -73,11 +73,11 @@ class SynList(object):
     def entity(self, term):
         return self._entity[self._get_index(term)]
 
-    def _new_item(self):
+    def new_item(self, entity=None):
         k = len(self._list)
         self._list.append(set())
         self._name.append(None)
-        self._entity.append(None)
+        self._entity.append(entity)
         return k
 
     def __len__(self):
@@ -147,7 +147,7 @@ class SynList(object):
         try:
             index = self._get_index(term)
         except KeyError:
-            index = self._new_item()
+            index = self.new_item()
             self._new_term(term, index)
         return index
 
@@ -184,7 +184,7 @@ class SynList(object):
             except KeyError:
                 unmatched.append(i)
         if len(unmatched) > 0:
-            index = self._new_item()
+            index = self.new_item()
             self._merge_set_with_index(unmatched, index)
         return index
 
@@ -261,6 +261,43 @@ class SynList(object):
     def add_synonyms(self, *terms):
         return self.add_set(terms, merge=True)
 
+    def _matches(self, term):
+        """
+        internal function to support split_term: returns a set of all terms in an item that match the given key. If
+        ignore_case is False, the set will only contain one term; if ignore_case is True, the set will contain all
+        terms that are equal after .lower()
+        :param term:
+        :return:
+        """
+        ind = self._get_index(term)
+        key = self._sanitize(term)
+        matches = set()
+        for k in self.synonym_set(ind):
+            if self._sanitize(k) == key:
+                matches.add(k)
+        if self._name[ind] in matches:
+            raise CannotSplitName('Use set_name() to choose a different name for this item')
+        return matches
+
+    def split_term(self, term):
+        """
+        Remove an existing term from the set it's currently in and assign it to a new item.  If ignore_case is true,
+        the split will encompass all terms that match ignoring case.  If a split term currently is the name of an
+         item, the split will not be allowed (use set_name to choose a different name first)
+
+        TODO: work this into unittest
+        TODO: deal with CAS numbers
+        :param term:
+        :return:
+        """
+        matches = self._matches(term)
+        old_ind = self._get_index(term)
+        for k in matches:
+            self._list[old_ind].remove(k)
+        new_ind = self._new_set(matches)
+        self.set_name(term)
+        return new_ind
+
     def _known(self, term):
         if term is None:
             return None
@@ -308,7 +345,7 @@ class SynList(object):
                 "synonyms": [k for k in self._list[index]]}
 
     def serialize(self):
-        json_string = self.__name__
+        json_string = self.__class__.__name__
         return {
             'ignore_case': self._ignore_case,
             json_string: [self._serialize_set(i) for i in range(len(self._list))
