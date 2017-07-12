@@ -89,7 +89,7 @@ class Flowables(SynList):
         self._dict[lterm] = index
 
     def _new_term(self, term, index):
-        if term is None:
+        if term is None or term == '':
             return
         key = self._sanitize(term)
         if key in self._dict:
@@ -106,6 +106,9 @@ class Flowables(SynList):
         self._list[index].add(term)
         self._dict[key] = index
         if self._name[index] is None:
+            self._name[index] = term
+        elif bool(cas_regex.match(self._name[index])) and not bool(cas_regex.match(term)):
+            # override CAS-name with non-CAS name, if one is found
             self._name[index] = term
 
     def _merge(self, merge, into):

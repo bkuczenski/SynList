@@ -94,7 +94,7 @@ class SynList(object):
         return key
 
     def _new_term(self, term, index):
-        if term is None:
+        if term is None or term == '':
             return
         key = self._sanitize(term)
         self._list[index].add(term)

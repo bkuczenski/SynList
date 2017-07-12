@@ -1,2 +1,2 @@
-from .synlist import SynList
-from .flowables import Flowables
+from .synlist import SynList, InconsistentIndices, EntityFound
+from .flowables import Flowables, ConflictingCas
